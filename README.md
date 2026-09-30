@@ -50,6 +50,18 @@ Chi tiết hướng dẫn theo hệ điều hành và xử lý lỗi: xem [`guid
 
 ---
 
+### Evaluation Dashboard
+
+Repo có dashboard local để xem golden dataset, benchmark metrics, retrieval
+trace, failure analysis và chạy các bước của lab:
+
+    python -m pip install -r requirements.txt
+    streamlit run ui_app.py
+
+Dashboard dùng trực tiếp golden dataset và các file trong artifacts. Nó không
+lưu hoặc hiển thị API key. Khi chưa có benchmark artifact, UI vẫn cho phép
+duyệt toàn bộ golden dataset và hiển thị rõ bước nào đang chờ.
+
 ## Mục tiêu
 
 Sau bài lab này, học viên có thể:
