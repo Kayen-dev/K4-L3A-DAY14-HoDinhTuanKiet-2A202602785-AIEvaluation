@@ -165,6 +165,11 @@ Relevance: ____ | Completeness: ____ | Overall: ____
 Một root cause có thể tạo ra nhiều failures. Nhóm theo nguyên nhân có thể sửa,
 không chỉ nhóm theo tên metric.
 
+> Phần ID và priority sẽ được chốt từ benchmark thật. Trước benchmark, ba
+> cluster dùng để phân loại là: (1) retriever bỏ sót evidence, (2) ranking đưa
+> noise lên trước evidence, và (3) generator bỏ sót hoặc thêm claim không được
+> context hỗ trợ.
+
 | Cluster | Root Cause | Failure IDs | Priority |
 |---|---|---|---|
 | 1 | | | High/Medium/Low |
@@ -184,6 +189,9 @@ Paste output của `generate_improvement_log()`:
 ```text
 [paste Markdown table here]
 ```
+
+Improvement log cần được sinh từ đúng ba failures thấp nhất sau benchmark;
+không điền dữ liệu giả trước khi có `benchmark_results.json`.
 
 **Ba improvement suggestions ưu tiên**
 
@@ -207,21 +215,44 @@ Với mỗi suggestion, nêu metric dự kiến thay đổi và cách đo lại.
 
 > *Câu trả lời:*
 
+Chạy trên pull request có thay đổi prompt, model, retriever, chunking, corpus
+hoặc evaluation code; chạy lại trước release; và chạy định kỳ trên một snapshot
+production đã ẩn dữ liệu nhạy cảm. Baseline phải được version cùng model,
+prompt, corpus và dataset để so sánh có ý nghĩa.
+
 **Câu 2: Threshold drop 0.05 có phù hợp OrbitTech Customer Support không? Vì sao?**
 
 > *Câu trả lời:*
+
+Ngưỡng giảm hơn 0.05 phù hợp làm quality gate tổng quát của lab vì đủ lớn để
+tránh chặn bởi dao động nhỏ. Tuy nhiên production nên dùng ngưỡng chặt hơn hoặc
+zero-tolerance cho safety/privacy và hallucination policy nghiêm trọng, đồng
+thời dùng nhiều lần chạy hoặc confidence interval trước khi kết luận regression
+do model không hoàn toàn deterministic.
 
 **Câu 3: Metric/failure nào phải block deployment, metric nào chỉ alert?**
 
 > *Câu trả lời:*
 
+Block deployment khi Faithfulness dưới 0.80, khi bất kỳ case safety/privacy
+hoặc prompt-injection nào thất bại, hoặc khi một answer metric trung bình giảm
+hơn 0.05 so với baseline. Relevance/Completeness giảm nhỏ nhưng chưa vượt
+ngưỡng có thể alert để điều tra; Context Precision thấp có thể alert nếu Recall
+và answer quality vẫn đạt, nhưng Context Recall thấp trên case bắt buộc phải
+block vì evidence cần thiết đã bị bỏ sót.
+
 **Câu 4: Điền evaluation stages vào flow.**
 
 ```text
-Code/prompt/retrieval change → [________] → [________] → [________] → Deploy
+Code/prompt/retrieval change → [Unit + dataset validation] → [Offline benchmark + regression gate] → [Human review for high-risk failures] → Deploy
 ```
 
 > *Giải thích:*
+
+Unit tests bảo vệ công thức và wiring; validator bảo vệ schema/provenance.
+Benchmark đo chất lượng end-to-end so với baseline. Human review xử lý các case
+safety, privacy, policy-version và các bất đồng mà word-overlap không đánh giá
+được tin cậy. Sau deploy, online monitoring tiếp tục phát hiện drift.
 
 ---
 
@@ -233,13 +264,18 @@ Evaluate → Analyze → Improve → Augment benchmark → Repeat
 
 | Priority | Action | Metric dự kiến cải thiện | Expected impact |
 |---:|---|---|---|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
+| 1 | Bổ sung query expansion/intent routing cho case có evidence không xuất hiện trong top-k. | Context Recall | Tăng khả năng lấy đủ policy, điều kiện và ngoại lệ cần cho câu trả lời. |
+| 2 | Rerank candidate chunks bằng semantic/cross-encoder và kiểm tra thứ tự bằng regression set. | Context Precision, Faithfulness | Đưa evidence lên trước noise, giảm khả năng generator bám vào policy sai. |
+| 3 | Thêm checklist generation cho dates, amounts, conditions, exceptions và scope limitations. | Completeness, Faithfulness | Giảm bỏ sót claim bắt buộc và ngăn lời hứa không được policy hỗ trợ. |
 
 **Hai hoặc ba failure cases nào cần thêm vào benchmark ở vòng tiếp theo?**
 
 > *Câu trả lời:*
+
+Ưu tiên bổ sung các case production có Context Recall thấp, case đúng general
+rule nhưng sai policy version theo ngày, và case adversarial mà câu trả lời an
+toàn bị heuristic lexical chấm thấp. ID cụ thể sẽ lấy từ ba failures thấp nhất
+sau benchmark để tránh chọn theo giả định.
 
 ---
 
@@ -249,7 +285,21 @@ Evaluate → Analyze → Improve → Augment benchmark → Repeat
 
 > *Câu trả lời:*
 
+Chưa thể kết luận trước benchmark thật. Kết quả retrieval-only ban đầu cho thấy
+một điểm đáng chú ý: lexical reranking tăng Context Precision trung bình trên
+mẫu 5 case nhưng làm M01 giảm 0.050, chứng minh reranking theo overlap không
+đảm bảo cải thiện từng case. Phần này sẽ được cập nhật bằng answer metrics sau
+khi gateway sinh đủ 20 actual answers.
+
 **Word-overlap heuristics trong lab có giới hạn gì? Nếu đưa hệ thống vào
 production, bạn sẽ thay hoặc bổ sung metric nào?**
 
 > *Câu trả lời:*
+
+Word overlap không hiểu paraphrase, phủ định, quan hệ logic, đúng/sai của số và
+ngày, hay việc một câu tuy dùng đúng từ nhưng diễn giải sai chính sách. Nó cũng
+có thể phạt một refusal ngắn nhưng an toàn và thưởng câu copy context mà không
+giải quyết intent. Trong production, tôi sẽ bổ sung claim-level entailment cho
+faithfulness, semantic answer relevance, LLM-as-a-Judge đã calibrate với human
+labels, deterministic checks cho dates/fees/policy versions, safety/privacy
+tests, cùng business metrics như escalation accuracy và resolution rate.
