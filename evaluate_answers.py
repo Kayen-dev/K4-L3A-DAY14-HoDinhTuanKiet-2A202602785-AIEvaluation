@@ -161,6 +161,11 @@ def build_evaluation_artifact(
 ) -> dict[str, Any]:
     failures = [result for result in results if not result.passed]
     suggestions = analyzer.generate_improvement_suggestions(failures)
+    lowest_failures = sorted(failures, key=lambda result: result.overall_score())[:3]
+    targeted_suggestions = [
+        analyzer.generate_improvement_suggestions([failure])[0]
+        for failure in lowest_failures
+    ]
     return {
         "summary": summary,
         "results": [
@@ -183,8 +188,11 @@ def build_evaluation_artifact(
         "failure_analysis": {
             "counts": analyzer.categorize_failures(failures),
             "suggestions": suggestions,
+            "improvement_log_ids": [
+                result.qa_pair.metadata.get("id") for result in lowest_failures
+            ],
             "improvement_log": analyzer.generate_improvement_log(
-                failures, suggestions
+                lowest_failures, targeted_suggestions
             ),
         },
     }

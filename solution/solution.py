@@ -13,14 +13,14 @@ Key concepts from lecture:
     - CI/CD integration: eval as quality gate (score < threshold = block deploy)
     - Continuous Improvement Loop: Evaluate → Analyze → Improve → Augment → Repeat
 
-Instructions:
-    1. Fill in every required section marked with TODO.
+Implementation notes:
+    1. Required tasks and the optional reranking helper are implemented.
     2. Do NOT change class/function signatures. The optional ``contexts``
        parameter in ``run_full_eval`` is part of the required interface.
     3. Copy this file to solution/solution.py when done.
     4. Run: pytest tests/ -v
 
-The reranking helper is an optional bonus exercise and may remain unimplemented.
+The reranking helper implements the optional bonus exercise.
 """
 
 from __future__ import annotations
@@ -105,7 +105,6 @@ class EvalResult:
         Returns:
             (faithfulness + relevance + completeness) / 3.0
 
-        TODO: Return mean of the three metric scores
         """
         return (self.faithfulness + self.relevance + self.completeness) / 3.0
 
@@ -602,7 +601,6 @@ class BenchmarkRunner:
               - 'regressions': list[str] — names of metrics that regressed
               - 'passed': bool — True if no regressions
 
-        TODO: Compute avg per metric, compare, list regressions, set passed flag
         """
         metric_names = ("faithfulness", "relevance", "completeness")
 
@@ -726,7 +724,6 @@ class FailureAnalyzer:
         Returns:
             Markdown table string with a row per failure. Status is always "Open".
 
-        TODO: Build markdown table with failure details + matched suggestions
         """
         rows = [
             "| Failure ID | Type | Root Cause | Suggested Fix | Status |",
